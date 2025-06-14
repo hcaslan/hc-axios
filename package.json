@@ -1,0 +1,32 @@
+{
+  "name": "hc-axios",
+  "version": "0.0.1",
+  "description": "Utility functions built on top of Axios",
+  "type": "module",
+  "main": "index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./index.js",
+      "require": "./index.js",
+      "types": "./index.d.ts"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hcaslan/hc-axios.git"
+  },
+  "keywords": [
+    "axios",
+    "http",
+    "utils",
+    "wrapper"
+  ],
+  "author": "Heval Can Aslan Özen",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0"
+  }
+}
+
+
