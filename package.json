@@ -1,6 +1,6 @@
 {
   "name": "hc-axios",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Feature-rich Axios wrapper with auth, retry, and logging capabilities",
   "type": "module",
   "main": "index.js",
