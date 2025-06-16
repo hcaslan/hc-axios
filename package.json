@@ -1,6 +1,6 @@
 {
   "name": "hc-axios",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Utility functions built on top of Axios",
   "type": "module",
   "main": "index.js",
