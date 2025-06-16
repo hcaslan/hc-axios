@@ -1,7 +1,7 @@
 {
   "name": "hc-axios",
-  "version": "0.0.4",
-  "description": "Feature-rich Axios wrapper with auth, retry, and logging capabilities",
+  "version": "0.0.5",
+  "description": "A powerful wrapper around Axios that simplifies token management, adds retry logic, provides useful debugging features, and eliminates common boilerplate patterns with advanced utilities.",
   "type": "module",
   "main": "index.js",
   "types": "./index.d.ts",
