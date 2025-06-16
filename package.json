@@ -1,7 +1,7 @@
 {
   "name": "hc-axios",
-  "version": "0.0.2",
-  "description": "Utility functions built on top of Axios",
+  "version": "0.0.3",
+  "description": "Feature-rich Axios wrapper with auth, retry, and logging capabilities",
   "type": "module",
   "main": "index.js",
   "types": "./index.d.ts",
@@ -12,6 +12,16 @@
       "types": "./index.d.ts"
     }
   },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "lib/**/*"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "build": "node scripts/build.js",
+    "prepublishOnly": "npm run build"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hcaslan/hc-axios.git"
@@ -19,14 +29,32 @@
   "keywords": [
     "axios",
     "http",
-    "utils",
-    "wrapper"
+    "ajax",
+    "promise",
+    "wrapper",
+    "auth",
+    "authentication",
+    "token",
+    "refresh-token",
+    "retry",
+    "interceptor",
+    "logging",
+    "typescript"
   ],
   "author": "Heval Can Aslan Özen",
   "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/hcaslan/hc-axios/issues"
+  },
+  "homepage": "https://github.com/hcaslan/hc-axios#readme",
   "dependencies": {
     "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
   }
 }
-
-
