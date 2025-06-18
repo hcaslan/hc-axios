@@ -1,6 +1,6 @@
 {
   "name": "hc-axios",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "A powerful wrapper around Axios that simplifies token management, adds retry logic, provides useful debugging features, and eliminates common boilerplate patterns with advanced utilities.",
   "type": "module",
   "main": "index.js",
