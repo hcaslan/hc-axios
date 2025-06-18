@@ -16,6 +16,323 @@ export interface RefreshTokenOptions {
   handleRefreshResponse?: (response: AxiosResponse) => { token: string; refreshToken: string };
 }
 
+export interface ConditionalInterceptorConfig {
+  condition: (config: AxiosRequestConfig) => boolean;
+  config?: any;
+}
+
+export interface InterceptorConditionFunction {
+  (config: AxiosRequestConfig): boolean;
+}
+
+export interface InterceptorGroupStatus {
+  enabled: boolean;
+  interceptors: string[];
+}
+
+export interface ConditionalInterceptorStatus {
+  enabled: boolean;
+  hasCondition: boolean;
+}
+
+export interface InterceptorManagerStatus {
+  groups: Record<string, InterceptorGroupStatus>;
+  conditional: Record<string, ConditionalInterceptorStatus>;
+  activeInterceptors: string[];
+}
+
+export interface EnhancedInterceptorStatus {
+  auth: boolean;
+  refreshToken: boolean;
+  retry: boolean;
+  logging: boolean;
+  uploadProgress: boolean;
+  cache: boolean;
+  smartTimeout: boolean;
+  rateLimit: boolean;
+  interceptorManager: InterceptorManagerStatus;
+}
+
+export interface InterceptorManagerMetrics {
+  groups: number;
+  conditionalInterceptors: number;
+}
+
+export interface EnhancedInstanceMetrics {
+  requestQueue: QueueMetrics | null;
+  interceptorManager: InterceptorManagerMetrics;
+}
+
+export interface TimeRangeCondition {
+  start: number; // Hour (0-23)
+  end: number;   // Hour (0-23)
+}
+
+export interface HeaderConditions {
+  [headerName: string]: string | RegExp | ((value: string) => boolean);
+}
+
+export interface SmartRoutingConfig {
+  [pattern: string]: string[];
+}
+
+// Interceptor Conditions class
+export declare class InterceptorConditions {
+  static urlMatches(patterns: string | RegExp | (string | RegExp)[]): InterceptorConditionFunction;
+  static methodMatches(methods: string | string[]): InterceptorConditionFunction;
+  static environmentMatches(environments: string | string[]): InterceptorConditionFunction;
+  static headerMatches(headerConditions: HeaderConditions): InterceptorConditionFunction;
+  static hasDataKeys(dataKeys: string | string[]): InterceptorConditionFunction;
+  static timeRange(timeRange: TimeRangeCondition): InterceptorConditionFunction;
+  static isAuthenticated(getAuthStatus?: () => boolean): InterceptorConditionFunction;
+  static isOnline(): InterceptorConditionFunction;
+  static isFileUpload(): InterceptorConditionFunction;
+  static requestSizeBelow(maxSize: number): InterceptorConditionFunction;
+  static isPublicEndpoint(publicPaths?: string[]): InterceptorConditionFunction;
+  static userAgentMatches(pattern: string | RegExp): InterceptorConditionFunction;
+  static and(...conditions: InterceptorConditionFunction[]): InterceptorConditionFunction;
+  static or(...conditions: InterceptorConditionFunction[]): InterceptorConditionFunction;
+  static not(condition: InterceptorConditionFunction): InterceptorConditionFunction;
+  static custom(conditionFn: InterceptorConditionFunction): InterceptorConditionFunction;
+}
+
+// Common Conditions
+export declare const CommonConditions: {
+  isDevelopment: InterceptorConditionFunction;
+  isProduction: InterceptorConditionFunction;
+  isGetRequest: InterceptorConditionFunction;
+  isPostRequest: InterceptorConditionFunction;
+  isWriteRequest: InterceptorConditionFunction;
+  isApiCall: InterceptorConditionFunction;
+  isAuthCall: InterceptorConditionFunction;
+  isPublicRoute: InterceptorConditionFunction;
+  requiresAuth: InterceptorConditionFunction;
+  isFileUpload: InterceptorConditionFunction;
+  isSmallRequest: InterceptorConditionFunction;
+  isOnline: InterceptorConditionFunction;
+  isBusinessHours: InterceptorConditionFunction;
+  isNightTime: InterceptorConditionFunction;
+  isMobile: InterceptorConditionFunction;
+  isDesktop: InterceptorConditionFunction;
+};
+
+// Interceptor Manager class
+export declare class InterceptorManager {
+  constructor(instance: AxiosInstance);
+  createGroup(groupName: string, interceptorNames: string[]): InterceptorManager;
+  enableGroup(groupName: string): InterceptorManager;
+  disableGroup(groupName: string): InterceptorManager;
+  toggleGroup(groupName: string): InterceptorManager;
+  useConditionalInterceptors(config: Record<string, ConditionalInterceptorConfig>): InterceptorManager;
+  addConditionalInterceptor(interceptorName: string, options: ConditionalInterceptorConfig): InterceptorManager;
+  removeConditionalInterceptor(interceptorName: string): InterceptorManager;
+  enableInterceptor(interceptorName: string): InterceptorManager;
+  disableInterceptor(interceptorName: string): InterceptorManager;
+  getStatus(): InterceptorManagerStatus;
+  getGroups(): string[];
+  getConditionalInterceptors(): string[];
+  clearGroups(): InterceptorManager;
+  clearConditionalInterceptors(): InterceptorManager;
+}
+
+// Enhanced HCAxiosInstance with interceptor management
+export interface HCAxiosInstance extends AxiosInstance {  
+  // Auth methods
+  useAuth(getToken: () => string | null | undefined): HCAxiosInstance;
+  removeAuth(): HCAxiosInstance;
+  
+  // Refresh token methods
+  useRefreshToken(options: RefreshTokenOptions): HCAxiosInstance;
+  removeRefreshToken(): HCAxiosInstance;
+  
+  // Retry methods
+  useRetry(options?: RetryOptions): HCAxiosInstance;
+  removeRetry(): HCAxiosInstance;
+  
+  // Logging methods
+  useLogging(options?: LoggingOptions): HCAxiosInstance;
+  removeLogging(): HCAxiosInstance;
+  
+  // Upload progress methods
+  useUploadProgress(options?: UploadOptions): HCAxiosInstance;
+  removeUploadProgress(): HCAxiosInstance;
+  
+  // Cache methods
+  useCache(options?: CacheOptions): HCAxiosInstance;
+  removeCache(): HCAxiosInstance;
+  
+  // Timeout methods
+  useSmartTimeout(options?: TimeoutOptions): HCAxiosInstance;
+  removeSmartTimeout(): HCAxiosInstance;
+  
+  // Rate limit methods
+  useRateLimit(options?: RateLimitOptions): HCAxiosInstance;
+  removeRateLimit(): HCAxiosInstance;
+  
+  // Response transformation methods
+  useResponseTransform(transformer: (data: any) => any): HCAxiosInstance;
+  useCamelCase(): HCAxiosInstance;
+  
+  // Queue methods
+  useQueue(maxConcurrent?: number): HCAxiosInstance;
+  
+  // Group management
+  createInterceptorGroup(groupName: string, interceptorNames: string[]): HCAxiosInstance;
+  enableGroup(groupName: string): HCAxiosInstance;
+  disableGroup(groupName: string): HCAxiosInstance;
+  toggleGroup(groupName: string): HCAxiosInstance;
+  getInterceptorGroups(): string[];
+  clearInterceptorGroups(): HCAxiosInstance;
+  
+  // Conditional interceptors
+  useConditionalInterceptors(config: Record<string, ConditionalInterceptorConfig>): HCAxiosInstance;
+  addConditionalInterceptor(interceptorName: string, options: ConditionalInterceptorConfig): HCAxiosInstance;
+  removeConditionalInterceptor(interceptorName: string): HCAxiosInstance;
+  getConditionalInterceptors(): string[];
+  clearConditionalInterceptors(): HCAxiosInstance;
+  
+  // Individual interceptor control
+  enableInterceptor(interceptorName: string): HCAxiosInstance;
+  disableInterceptor(interceptorName: string): HCAxiosInstance;
+  
+  // Enhanced setup methods
+  setupCommonGroups(): HCAxiosInstance;
+  setupEnvironmentInterceptors(): HCAxiosInstance;
+  setupSmartRouting(routes?: SmartRoutingConfig): HCAxiosInstance;
+  
+  // Enhanced status and metrics
+  getInterceptorManagerStatus(): InterceptorManagerStatus;
+  getInterceptorStatus(): EnhancedInterceptorStatus;
+  getMetrics(): EnhancedInstanceMetrics;
+  
+  // Condition utilities (exposed for advanced users)
+  InterceptorConditions: typeof InterceptorConditions;
+  CommonConditions: typeof CommonConditions;
+  
+  uploadFile(file: File, options?: FileUploadOptions): Promise<AxiosResponse>;
+  batch<T = any>(requests: Array<(() => Promise<AxiosResponse<T>>) | AxiosRequestConfig>): Promise<AxiosResponse<T>[]>;
+  cancellable<T = any>(key: string, config: AxiosRequestConfig): Promise<AxiosResponse<T>>;
+  cancel(key: string): void;
+  cancelAll(): void;
+  paginate<T = any>(url: string, options?: AxiosRequestConfig): AsyncIterableIterator<PaginationPage<T>>;
+  fetchAll<T = any>(url: string, options?: AxiosRequestConfig): Promise<T[]>;
+  resource<T = any>(resourcePath: string): ResourceMethods<T>;
+  healthCheck(endpoint?: string): HealthCheck;
+  poll<T = any>(url: string, options?: PollingOptions): Promise<AxiosResponse<T>>;
+  concurrent<T = any>(requests: Array<() => Promise<AxiosResponse<T>>>, limit?: number): Promise<AxiosResponse<T>[]>;
+  retryRequest<T = any>(config: AxiosRequestConfig, options?: RetryRequestOptions): Promise<AxiosResponse<T>>;
+  withCircuitBreaker(options?: CircuitBreakerOptions): HCAxiosInstance;
+  dedupe(): HCAxiosInstance;
+  mock(mocks: MockConfig): HCAxiosInstance;
+  unmock?(): HCAxiosInstance;
+  
+  // Setup helpers
+  setupAuth(config: AuthConfig): HCAxiosInstance;
+  setupDevelopment(options?: DevelopmentSetupOptions): HCAxiosInstance;
+  setupProduction(options?: ProductionSetupOptions): HCAxiosInstance;
+  
+  // Internal properties
+  _queue?: any;
+}
+
+// Enhanced setup options with interceptor management
+export interface EnhancedDevelopmentSetupOptions extends DevelopmentSetupOptions {
+  interceptorGroups?: string[];
+  conditionalInterceptors?: Record<string, ConditionalInterceptorConfig>;
+  smartRouting?: SmartRoutingConfig;
+}
+
+export interface EnhancedProductionSetupOptions extends ProductionSetupOptions {
+  interceptorGroups?: string[];
+  conditionalInterceptors?: Record<string, ConditionalInterceptorConfig>;
+  smartRouting?: SmartRoutingConfig;
+}
+
+// Enhanced configuration interface
+export interface InterceptorManagementConfig {
+  groups?: Record<string, string[]>;
+  conditionalInterceptors?: Record<string, ConditionalInterceptorConfig>;
+  smartRouting?: SmartRoutingConfig;
+  autoSetupEnvironment?: boolean;
+  autoSetupCommonGroups?: boolean;
+}
+
+// Testing helpers interface
+export interface InterceptorTestingHelpers {
+  saveState(): any;
+  restoreState(): void;
+  createTestInstance(config?: any): HCAxiosInstance;
+  validateInterceptors(): Promise<Record<string, boolean>>;
+}
+
+// Controls interface for runtime management
+export interface InterceptorControls {
+  toggleApiCalls(): void;
+  toggleDevelopment(): void;
+  toggleProduction(): void;
+  enableAuth(): void;
+  disableAuth(): void;
+  enableLogging(): void;
+  disableLogging(): void;
+  addTempLogging(): void;
+  getStatus(): EnhancedInterceptorStatus;
+  getMetrics(): EnhancedInstanceMetrics;
+}
+
+export interface UploadProgressInfo {
+  loaded: number;
+  total: number;
+  percentage: number;
+  speed: number;
+  remaining: number;
+}
+
+export interface PaginationPage<T = any> {
+  data: T[];
+  page: number;
+  total?: number;
+  hasMore: boolean;
+}
+
+export interface PollingOptions {
+  interval?: number;
+  maxAttempts?: number;
+  condition?: (data: any) => boolean;
+  onUpdate?: (response: AxiosResponse, attempt: number) => void;
+  onError?: (error: any, attempt: number) => boolean;
+  config?: AxiosRequestConfig;
+}
+
+export interface ResourceMethods<T = any> {
+  list(params?: any): Promise<AxiosResponse<T[]>>;
+  get(id: string | number): Promise<AxiosResponse<T>>;
+  create(data: Partial<T>): Promise<AxiosResponse<T>>;
+  update(id: string | number, data: Partial<T>): Promise<AxiosResponse<T>>;
+  patch(id: string | number, data: Partial<T>): Promise<AxiosResponse<T>>;
+  delete(id: string | number): Promise<AxiosResponse<void>>;
+}
+
+export interface QueueMetrics {
+  running: number;
+  queued: number;
+}
+
+export interface HealthCheckResult {
+  healthy: boolean;
+  status?: number;
+  data?: any;
+  error?: string;
+}
+
+export interface HealthCheck {
+  check(): Promise<HealthCheckResult>;
+}
+
+export interface MockConfig {
+  [key: string]: any;
+}
+
+
 export interface RetryOptions {
   retries?: number;
   retryDelay?: number | ((retryCount: number) => number);
@@ -34,19 +351,6 @@ export interface LoggingOptions {
   requestFormatter?: (config: AxiosRequestConfig) => any;
   responseFormatter?: (response: AxiosResponse) => any;
   errorFormatter?: (error: any) => any;
-}
-
-export interface AuthConfig {
-  getToken: () => string | null | undefined;
-  refresh?: RefreshTokenOptions;
-}
-
-export interface UploadProgressInfo {
-  loaded: number;
-  total: number;
-  percentage: number;
-  speed: number;
-  remaining: number;
 }
 
 export interface UploadOptions {
@@ -74,92 +378,9 @@ export interface RateLimitOptions {
   onLimit?: (error: any, config: AxiosRequestConfig) => void;
 }
 
-export interface PaginationConfig {
-  pageParam?: string;
-  limitParam?: string;
-  defaultLimit?: number;
-  totalKey?: string;
-  dataKey?: string;
-  pageKey?: string;
-}
-
-export interface PaginationPage<T = any> {
-  data: T[];
-  page: number;
-  total?: number;
-  hasMore: boolean;
-}
-
-export interface PollingOptions {
-  interval?: number;
-  maxAttempts?: number;
-  condition?: (data: any) => boolean;
-  onUpdate?: (response: AxiosResponse, attempt: number) => void;
-  onError?: (error: any, attempt: number) => boolean;
-  config?: AxiosRequestConfig;
-}
-
-export interface CircuitBreakerOptions {
-  failureThreshold?: number;
-  resetTimeout?: number;
-  monitoringPeriod?: number;
-}
-
-export interface RetryRequestOptions {
-  retries?: number;
-  baseDelay?: number;
-  maxDelay?: number;
-  backoffFactor?: number;
-}
-
-export interface HealthCheckResult {
-  healthy: boolean;
-  status?: number;
-  data?: any;
-  error?: string;
-}
-
-export interface HealthCheck {
-  check(): Promise<HealthCheckResult>;
-}
-
-export interface MockResponse {
-  data?: any;
-  status?: number;
-  statusText?: string;
-  headers?: Record<string, string>;
-  error?: Error;
-  delay?: number;
-}
-
-export interface MockConfig {
-  [key: string]: MockResponse | any;
-}
-
-export interface FileUploadOptions {
-  url?: string;
-  fieldName?: string;
-  onProgress?: (info: UploadProgressInfo) => void;
-  headers?: Record<string, string>;
-  config?: AxiosRequestConfig;
-}
-
-export interface ResourceMethods<T = any> {
-  list(params?: any): Promise<AxiosResponse<T[]>>;
-  get(id: string | number): Promise<AxiosResponse<T>>;
-  create(data: Partial<T>): Promise<AxiosResponse<T>>;
-  update(id: string | number, data: Partial<T>): Promise<AxiosResponse<T>>;
-  patch(id: string | number, data: Partial<T>): Promise<AxiosResponse<T>>;
-  delete(id: string | number): Promise<AxiosResponse<void>>;
-}
-
-export interface QueueMetrics {
-  running: number;
-  queued: number;
-}
-
-export interface InstanceMetrics {
-  requestQueue: QueueMetrics | null;
+export interface AuthConfig {
+  getToken: () => string | null | undefined;
+  refresh?: RefreshTokenOptions;
 }
 
 export interface DevelopmentSetupOptions {
@@ -177,145 +398,35 @@ export interface ProductionSetupOptions {
   logging?: LoggingOptions;
 }
 
-export interface InterceptorStatus {
-  auth: boolean;
-  refreshToken: boolean;
-  retry: boolean;
-  logging: boolean;
-  uploadProgress: boolean;
-  cache: boolean;
-  smartTimeout: boolean;
-  rateLimit: boolean;
+export interface CircuitBreakerOptions {
+  failureThreshold?: number;
+  resetTimeout?: number;
+  monitoringPeriod?: number;
 }
 
-export interface HCAxiosInstance extends AxiosInstance {
-  // Auth methods
-  useAuth(getToken: () => string | null | undefined): HCAxiosInstance;
-  removeAuth(): HCAxiosInstance;
-  
-  // Refresh token methods
-  useRefreshToken(options: RefreshTokenOptions): HCAxiosInstance;
-  removeRefreshToken(): HCAxiosInstance;
-  
-  // Retry methods
-  useRetry(options?: RetryOptions): HCAxiosInstance;
-  removeRetry(): HCAxiosInstance;
-  
-  // Logging methods
-  useLogging(options?: LoggingOptions): HCAxiosInstance;
-  removeLogging(): HCAxiosInstance;
-  
-  // New enhanced methods
-  useUploadProgress(options?: UploadOptions): HCAxiosInstance;
-  removeUploadProgress(): HCAxiosInstance;
-  
-  // Cache methods
-  useCache(options?: CacheOptions): HCAxiosInstance;
-  removeCache(): HCAxiosInstance;
-  
-  // Timeout methods
-  useSmartTimeout(options?: TimeoutOptions): HCAxiosInstance;
-  removeSmartTimeout(): HCAxiosInstance;
-  
-  // Rate limit methods
-  useRateLimit(options?: RateLimitOptions): HCAxiosInstance;
-  removeRateLimit(): HCAxiosInstance;
-  
-  // Response transformation methods
-  useResponseTransform(transformer: (data: any) => any): HCAxiosInstance;
-  useCamelCase(): HCAxiosInstance;
-  
-  // Queue methods
-  useQueue(maxConcurrent?: number): HCAxiosInstance;
-  
-  // Utility methods
-  uploadFile(file: File, options?: FileUploadOptions): Promise<AxiosResponse>;
-  
-  batch<T = any>(requests: Array<(() => Promise<AxiosResponse<T>>) | AxiosRequestConfig>): Promise<AxiosResponse<T>[]>;
-  
-  cancellable<T = any>(key: string, config: AxiosRequestConfig): Promise<AxiosResponse<T>>;
-  cancel(key: string): void;
-  cancelAll(): void;
-  
-  paginate<T = any>(url: string, options?: AxiosRequestConfig): AsyncIterableIterator<PaginationPage<T>>;
-  fetchAll<T = any>(url: string, options?: AxiosRequestConfig): Promise<T[]>;
-  
-  resource<T = any>(resourcePath: string): ResourceMethods<T>;
-  
-  healthCheck(endpoint?: string): HealthCheck;
-  
-  poll<T = any>(url: string, options?: PollingOptions): Promise<AxiosResponse<T>>;
-  
-  concurrent<T = any>(requests: Array<() => Promise<AxiosResponse<T>>>, limit?: number): Promise<AxiosResponse<T>[]>;
-  
-  retryRequest<T = any>(config: AxiosRequestConfig, options?: RetryRequestOptions): Promise<AxiosResponse<T>>;
-  
-  withCircuitBreaker(options?: CircuitBreakerOptions): HCAxiosInstance;
-  
-  dedupe(): HCAxiosInstance;
-  
-  mock(mocks: MockConfig): HCAxiosInstance;
-  unmock?(): HCAxiosInstance;
-  
-  // Setup helpers
-  setupAuth(config: AuthConfig): HCAxiosInstance;
-  setupDevelopment(options?: DevelopmentSetupOptions): HCAxiosInstance;
-  setupProduction(options?: ProductionSetupOptions): HCAxiosInstance;
-  
-  // Status and metrics
-  getInterceptorStatus(): InterceptorStatus;
-  getMetrics(): InstanceMetrics;
-  
-  // Internal properties (optional access)
-  _queue?: any;
+export interface RetryRequestOptions {
+  retries?: number;
+  baseDelay?: number;
+  maxDelay?: number;
+  backoffFactor?: number;
 }
 
+export interface FileUploadOptions {
+  url?: string;
+  fieldName?: string;
+  onProgress?: (info: UploadProgressInfo) => void;
+  headers?: Record<string, string>;
+  config?: AxiosRequestConfig;
+}
+
+// Main hcAxios static interface
 export interface HCAxiosStatic {
   create(config?: string | AxiosRequestConfig): HCAxiosInstance;
   VERSION: string;
   isHCAxios: boolean;
 }
 
-// Utility classes
-export declare class RequestQueue {
-  constructor(maxConcurrent?: number);
-  add<T>(requestFn: () => Promise<T>): Promise<T>;
-}
-
-export declare class PaginationHelper {
-  constructor(instance: AxiosInstance, config?: PaginationConfig);
-  fetchAll<T = any>(url: string, options?: AxiosRequestConfig): Promise<T[]>;
-  fetchPages<T = any>(url: string, options?: AxiosRequestConfig): AsyncIterableIterator<PaginationPage<T>>;
-}
-
-export declare class CancellationManager {
-  constructor();
-  create(key: string): AbortSignal;
-  cancel(key: string): void;
-  cancelAll(): void;
-  getSignal(key: string): AbortSignal | undefined;
-}
-
-export declare class BatchRequestManager {
-  constructor(instance: AxiosInstance, options?: {
-    batchSize?: number;
-    delay?: number;
-    endpoint?: string;
-  });
-  add<T = any>(config: AxiosRequestConfig): Promise<AxiosResponse<T>>;
-}
-
-export declare class ErrorHandler {
-  constructor(options?: {
-    globalHandler?: (error: any) => any;
-    logger?: any;
-  });
-  register(errorType: string, handler: (error: any) => any): void;
-  handle(error: any): Promise<any>;
-  getErrorType(error: any): string;
-}
-
-// Response transformers
+// Utility exports
 export declare const responseTransformers: {
   toCamelCase: (data: any) => any;
   toSnakeCase: (data: any) => any;
@@ -323,7 +434,6 @@ export declare const responseTransformers: {
   addMetadata: (response: any) => any;
 };
 
-// Common patterns
 export declare const commonPatterns: {
   createApiClient: (baseURL: string, options?: AxiosRequestConfig) => AxiosInstance;
   createResource: <T = any>(instance: AxiosInstance, resourcePath: string) => ResourceMethods<T>;
@@ -331,146 +441,28 @@ export declare const commonPatterns: {
   createHealthCheck: (instance: AxiosInstance, endpoint?: string) => HealthCheck;
 };
 
-// Interceptor functions
-export declare function attachAuthInterceptor(
-  instance: AxiosInstance, 
-  getTokenFn: () => string | null | undefined
-): number;
-
-export declare function attachRefreshInterceptor(
-  instance: AxiosInstance, 
-  options: RefreshTokenOptions
-): number;
-
-export declare function attachRetryInterceptor(
-  instance: AxiosInstance, 
-  options?: RetryOptions
-): number;
-
-export declare function attachLoggingInterceptor(
-  instance: AxiosInstance, 
-  options?: LoggingOptions
-): { request: number | null; response: number | null };
-
-export declare function attachUploadInterceptor(
-  instance: AxiosInstance, 
-  options?: UploadOptions
-): { request: number; response: number };
-
-export declare function attachCacheInterceptor(
-  instance: AxiosInstance, 
-  options?: CacheOptions
-): { request: number; response: number };
-
-export declare function attachTimeoutInterceptor(
-  instance: AxiosInstance, 
-  options?: TimeoutOptions
-): { request: number; response: number };
-
-export declare function attachRateLimitInterceptor(
-  instance: AxiosInstance, 
-  options?: RateLimitOptions
-): number;
-
 // Main export
 declare const hcAxios: HCAxiosStatic;
 
 export { hcAxios };
 export default hcAxios;
 
-// Type helpers for better developer experience
-export type RequestFunction<T = any> = () => Promise<AxiosResponse<T>>;
-export type TransformFunction = (data: any) => any;
-export type ErrorHandler = (error: any) => any;
-export type ProgressCallback = (info: UploadProgressInfo) => void;
-export type ConditionFunction = (data: any) => boolean;
+// Type helpers
+export type InterceptorCondition = InterceptorConditionFunction;
+export type ConditionalConfig = Record<string, ConditionalInterceptorConfig>;
+export type GroupConfig = Record<string, string[]>;
 
-// Generic response types for common use cases
-export interface ApiResponse<T = any> {
-  data: T;
-  message?: string;
-  success?: boolean;
-  errors?: string[];
-}
-
-export interface PaginatedResponse<T = any> {
-  data: T[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
-
-export interface ListResponse<T = any> {
-  items: T[];
-  count: number;
-  hasMore?: boolean;
-  nextCursor?: string;
-}
-
-// Error types
+// Enhanced error types
 export interface HCAxiosError extends Error {
   isHCAxiosError: true;
   code?: string;
   config?: AxiosRequestConfig;
   response?: AxiosResponse;
   request?: any;
-  toJSON(): object;
-}
-
-// Configuration presets
-export interface ConfigPreset {
-  development: DevelopmentSetupOptions;
-  production: ProductionSetupOptions;
-  testing: {
-    mocks: MockConfig;
-    timeout: number;
+  interceptorContext?: {
+    activeGroups: string[];
+    activeConditionals: string[];
+    appliedInterceptors: string[];
   };
-}
-
-// Event types for advanced usage
-export interface RequestEvent {
-  type: 'request' | 'response' | 'error';
-  config: AxiosRequestConfig;
-  timestamp: number;
-  data?: any;
-  error?: any;
-}
-
-export type EventListener = (event: RequestEvent) => void;
-
-// Advanced instance configuration
-export interface AdvancedConfig extends AxiosRequestConfig {
-  // Enhanced features
-  enableQueue?: boolean;
-  enableDeduplication?: boolean;
-  enableCircuitBreaker?: boolean;
-  
-  // Preset configurations
-  preset?: 'development' | 'production' | 'testing';
-  
-  // Event handling
-  onEvent?: EventListener;
-  
-  // Custom adapters
-  uploadAdapter?: (config: AxiosRequestConfig) => Promise<AxiosResponse>;
-  cacheAdapter?: (key: string) => Promise<any>;
-}
-
-// Module augmentation for better IDE support
-declare module 'axios' {
-  interface AxiosRequestConfig {
-    // Additional properties that hc-axios might add
-    uploadStartTime?: number;
-    cached?: boolean;
-    retryCount?: number;
-    circuitBreakerState?: 'OPEN' | 'CLOSED' | 'HALF_OPEN';
-  }
-  
-  interface AxiosResponse {
-    // Additional properties that hc-axios might add
-    cached?: boolean;
-    fromQueue?: boolean;
-    retryAttempt?: number;
-  }
+  toJSON(): object;
 }
