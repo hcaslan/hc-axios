@@ -19,8 +19,15 @@
   ],
   "scripts": {
     "test": "node --test",
-    "build": "node scripts/build.js",
-    "prepublishOnly": "npm run build"
+    "build": "npm run validate-imports && npm run build-version",
+    "build-version": "node scripts/build.js",
+    "validate-imports": "node scripts/validate-imports.js",
+    "validate-imports:fix": "node scripts/validate-imports.js --fix",
+    "validate-imports:report": "node scripts/validate-imports.js --report-only",
+    "lint": "npm run validate-imports",
+    "prebuild": "npm run validate-imports",
+    "prepublishOnly": "npm run build",
+    "postinstall": "npm run validate-imports:report || true"
   },
   "repository": {
     "type": "git",
@@ -39,7 +46,10 @@
     "retry",
     "interceptor",
     "logging",
-    "typescript"
+    "typescript",
+    "interceptor-management",
+    "conditional-interceptors",
+    "smart-routing"
   ],
   "author": "Heval Can Aslan Özen",
   "license": "MIT",
