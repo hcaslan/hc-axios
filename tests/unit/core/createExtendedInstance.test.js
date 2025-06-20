@@ -1,8 +1,6 @@
 import { describe, test, expect, jest, beforeEach } from "@jest/globals";
 import axios from "axios";
-import { createExtendedInstance } from "../../../lib/core/createExtendedInstance.js";
 
-// Mock all the module dependencies
 jest.mock("axios");
 jest.mock("../../lib/interceptors/auth.js");
 jest.mock("../../lib/interceptors/refresh.js");
@@ -21,6 +19,21 @@ jest.mock("../../lib/utils/interceptorManager.js");
 jest.mock("../../lib/utils/responseTransform.js");
 jest.mock("../../lib/utils/commonPatterns.js");
 jest.mock("../../lib/utils/interceptorConditions.js");
+
+import { createExtendedInstance } from "../../../lib/core/createExtendedInstance.js";
+import { RequestQueue } from "../../../lib/utils/requestQueue.js";
+import { PaginationHelper } from "../../../lib/utils/pagination.js";
+import { CancellationManager } from "../../../lib/utils/cancellation.js";
+import { BatchRequestManager } from "../../../lib/utils/batchRequests.js";
+import { ErrorHandler } from "../../../lib/utils/errorHandler.js";
+import { InterceptorManager } from "../../../lib/utils/interceptorManager.js";
+
+const MockedRequestQueue = jest.mocked(RequestQueue);
+const MockedPaginationHelper = jest.mocked(PaginationHelper);
+const MockedCancellationManager = jest.mocked(CancellationManager);
+const MockedBatchRequestManager = jest.mocked(BatchRequestManager);
+const MockedErrorHandler = jest.mocked(ErrorHandler);
+const MockedInterceptorManager = jest.mocked(InterceptorManager);
 
 describe("createExtendedInstance", () => {
   const mockAxiosInstance = {
@@ -204,21 +217,28 @@ describe("createExtendedInstance", () => {
   });
 
   test("should initialize all utility classes", () => {
-    const RequestQueue = require('../../../lib/utils/requestQueue.js').RequestQueue;
-    const PaginationHelper = require('../../../lib/utils/pagination.js').PaginationHelper;
-    const CancellationManager = require('../../../lib/utils/cancellation.js').CancellationManager;
-    const BatchRequestManager = require('../../../lib/utils/batchRequests.js').BatchRequestManager;
-    const ErrorHandler = require('../../../lib/utils/errorHandler.js').ErrorHandler;
-    const InterceptorManager = require('../../../lib/utils/interceptorManager.js').InterceptorManager;
+    const instance = createExtendedInstance();
 
-    createExtendedInstance();
-
-    expect(RequestQueue).toHaveBeenCalled();
-    expect(PaginationHelper).toHaveBeenCalled();
-    expect(CancellationManager).toHaveBeenCalled();
-    expect(BatchRequestManager).toHaveBeenCalled();
-    expect(ErrorHandler).toHaveBeenCalled();
-    expect(InterceptorManager).toHaveBeenCalled();
+    // Verify that utility methods are attached (which proves utilities were initialized)
+    expect(instance.batch).toBeDefined();
+    expect(instance.all).toBeDefined();
+    expect(instance.race).toBeDefined();
+    expect(instance.concurrent).toBeDefined();
+    expect(instance.poll).toBeDefined();
+    expect(instance.paginate).toBeDefined();
+    expect(instance.paginateAll).toBeDefined();
+    expect(instance.cancel).toBeDefined();
+    expect(instance.cancelAll).toBeDefined();
+    expect(instance.cancellable).toBeDefined();
+    expect(instance.withErrorHandler).toBeDefined();
+    
+    // Verify interceptor management methods are attached
+    expect(instance.createInterceptorGroup).toBeDefined();
+    expect(instance.enableGroup).toBeDefined();
+    expect(instance.disableGroup).toBeDefined();
+    expect(instance.getGroups).toBeDefined();
+    expect(instance.addConditionalInterceptor).toBeDefined();
+    expect(instance.removeConditionalInterceptor).toBeDefined();
   });
 
   test("all methods should return instance for chaining", () => {

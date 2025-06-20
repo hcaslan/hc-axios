@@ -23,8 +23,6 @@
     "test:coverage": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
     "test:core": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/core",
 
-    "test:createExtendedInstance": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/core/createExtendedInstance.test.js",
-
     "build": "npm run validate-imports && npm run build-version",
     "build-version": "node scripts/build.js",
     "validate-imports": "node scripts/validate-imports.js",
