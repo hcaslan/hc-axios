@@ -21,7 +21,11 @@
     "test": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest",
     "test:watch": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest --watch",
     "test:coverage": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
+    "test:ci": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --ci --coverage --watchAll=false",
+    "test:debug": "cross-env NODE_OPTIONS=--experimental-vm-modules node --inspect-brk node_modules/.bin/jest --runInBand",
+
     "test:core": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/core",
+    "test:utils": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/utils",
 
     "build": "npm run validate-imports && npm run build-version",
     "build-version": "node scripts/build.js",
