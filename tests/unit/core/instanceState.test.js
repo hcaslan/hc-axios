@@ -313,4 +313,299 @@ describe('instanceState', () => {
       expect(exported).toMatch(/\n\s+/);
     });
   });
+
+  describe('getActiveInterceptors - edge cases', () => {
+    test('should handle null interceptor IDs gracefully', () => {
+      // Set some interceptor IDs to null to test edge cases
+      interceptorIds.auth = null;
+      interceptorIds.retry = null;
+      interceptorIds.logging.request = null;
+      interceptorIds.upload.response = null;
+      
+      attachInstanceState(mockInstance, interceptorIds, utilities);
+      
+      const active = mockInstance.getActiveInterceptors();
+      
+      // Should not include interceptors with null IDs
+      expect(active.request).not.toContainEqual(
+        expect.objectContaining({ name: 'auth' })
+      );
+      expect(active.response).not.toContainEqual(
+        expect.objectContaining({ name: 'retry' })
+      );
+      expect(active.request).not.toContainEqual(
+        expect.objectContaining({ name: 'logging' })
+      );
+      expect(active.response).not.toContainEqual(
+        expect.objectContaining({ name: 'upload' })
+      );
+      
+      // Should still include non-null interceptors
+      expect(active.response).toContainEqual(
+        expect.objectContaining({ name: 'logging', id: 5 })
+      );
+      expect(active.request).toContainEqual(
+        expect.objectContaining({ name: 'upload', id: 6 })
+      );
+    });
+
+    test('should handle completely null interceptor group', () => {
+      interceptorIds.logging = { request: null, response: null };
+      interceptorIds.upload = { request: null, response: null };
+      interceptorIds.cache = { request: null, response: null };
+      interceptorIds.timeout = { request: null, response: null };
+      
+      attachInstanceState(mockInstance, interceptorIds, utilities);
+      
+      const active = mockInstance.getActiveInterceptors();
+      
+      expect(active.request).not.toContainEqual(
+        expect.objectContaining({ name: 'logging' })
+      );
+      expect(active.response).not.toContainEqual(
+        expect.objectContaining({ name: 'logging' })
+      );
+    });
+
+    test('should handle mixed null and valid IDs in grouped interceptors', () => {
+      interceptorIds.logging = { request: 10, response: null };
+      interceptorIds.cache = { request: null, response: 20 };
+      
+      attachInstanceState(mockInstance, interceptorIds, utilities);
+      
+      const active = mockInstance.getActiveInterceptors();
+      
+      // Should include only the non-null interceptors
+      expect(active.request).toContainEqual(
+        expect.objectContaining({ name: 'logging', id: 10 })
+      );
+      expect(active.response).not.toContainEqual(
+        expect.objectContaining({ name: 'logging' })
+      );
+      
+      expect(active.response).toContainEqual(
+        expect.objectContaining({ name: 'cache', id: 20 })
+      );
+      expect(active.request).not.toContainEqual(
+        expect.objectContaining({ name: 'cache' })
+      );
+    });
+  });
+
+  describe('getStats - edge cases with missing features', () => {
+    test('should handle null request queue', () => {
+      const incompleteUtilities = {
+        ...utilities,
+        requestQueue: null
+      };
+      
+      attachInstanceState(mockInstance, interceptorIds, incompleteUtilities);
+      
+      const stats = mockInstance.getStats();
+      expect(stats.queue).toBeNull();
+    });
+
+    test('should handle missing circuit breaker', () => {
+      mockInstance.getCircuitBreakerStatus = undefined;
+      
+      attachInstanceState(mockInstance, interceptorIds, utilities);
+      
+      const stats = mockInstance.getStats();
+      expect(stats.circuitBreaker).toBeNull();
+    });
+
+    test('should handle missing deduplication', () => {
+      mockInstance.getDedupeStats = undefined;
+      
+      attachInstanceState(mockInstance, interceptorIds, utilities);
+      
+      const stats = mockInstance.getStats();
+      expect(stats.dedupe).toBeNull();
+    });
+
+    test('should handle undefined mocks', () => {
+      mockInstance._mocks = undefined;
+      
+      attachInstanceState(mockInstance, interceptorIds, utilities);
+      
+      const stats = mockInstance.getStats();
+      expect(stats.mocks).toBe(0);
+    });
+
+    test('should handle null mocks array', () => {
+      mockInstance._mocks = null;
+      
+      attachInstanceState(mockInstance, interceptorIds, utilities);
+      
+      const stats = mockInstance.getStats();
+      expect(stats.mocks).toBe(0);
+    });
+
+    test('should handle missing interceptor manager getStats', () => {
+      const incompleteUtilities = {
+        ...utilities,
+        interceptorManager: {
+          // Missing getStats method
+        }
+      };
+      
+      attachInstanceState(mockInstance, interceptorIds, incompleteUtilities);
+      
+      const stats = mockInstance.getStats();
+      // Should still return stats but with default values for interceptorManager
+      expect(stats.interceptorManager).toEqual({ groups: 0, conditionalInterceptors: 0 });
+    });
+
+    test('should handle request queue without getStats method', () => {
+      const incompleteUtilities = {
+        ...utilities,
+        requestQueue: {
+          // Missing getStats method
+          running: 0,
+          queued: 0,
+          maxConcurrent: 10
+        }
+      };
+      
+      attachInstanceState(mockInstance, interceptorIds, incompleteUtilities);
+      
+      const stats = mockInstance.getStats();
+      expect(stats.queue).toEqual({
+        running: 0,
+        queued: 0,
+        maxConcurrent: 10
+      });
+    });
+  });
+
+  describe('getConfig - edge cases', () => {
+    test('should handle missing defaults', () => {
+      const instanceWithoutDefaults = {
+        ...mockInstance,
+        defaults: undefined
+      };
+      
+      attachInstanceState(instanceWithoutDefaults, interceptorIds, utilities);
+      
+      const config = instanceWithoutDefaults.getConfig();
+      expect(config).toEqual({});
+    });
+
+    test('should handle null defaults', () => {
+      const instanceWithNullDefaults = {
+        ...mockInstance,
+        defaults: null
+      };
+      
+      attachInstanceState(instanceWithNullDefaults, interceptorIds, utilities);
+      
+      const config = instanceWithNullDefaults.getConfig();
+      expect(config).toBeNull();
+    });
+
+    test('should deep clone the defaults to prevent mutation', () => {
+      attachInstanceState(mockInstance, interceptorIds, utilities);
+      
+      const config = mockInstance.getConfig();
+      
+      // Modify the returned config
+      config.baseURL = 'https://modified.com';
+      config.headers.common['X-Modified'] = 'true';
+      
+      // Original should not be modified
+      expect(mockInstance.defaults.baseURL).toBe('https://api.example.com');
+      expect(mockInstance.defaults.headers.common['X-Modified']).toBeUndefined();
+    });
+  });
+
+  describe('reset - additional edge cases', () => {
+    test('should handle instance without interceptor manager', () => {
+      const incompleteUtilities = {
+        ...utilities,
+        interceptorManager: undefined
+      };
+      
+      attachInstanceState(mockInstance, interceptorIds, incompleteUtilities);
+      
+      // Should not throw when interceptor manager is missing
+      expect(() => mockInstance.reset()).not.toThrow();
+    });
+
+    test('should handle interceptor manager without clear method', () => {
+      const incompleteUtilities = {
+        ...utilities,
+        interceptorManager: {
+          // Missing clear method
+        }
+      };
+      
+      attachInstanceState(mockInstance, interceptorIds, incompleteUtilities);
+      
+      // Should not throw when clear method is missing
+      expect(() => mockInstance.reset()).not.toThrow();
+    });
+  });
+
+  describe('createSnapshot - edge cases', () => {
+    test('should handle incomplete utilities in snapshot', () => {
+      const incompleteUtilities = {
+        requestQueue: null,
+        interceptorManager: {
+          getActiveGroups: () => [],
+          getConditionalInterceptors: () => []
+        }
+      };
+      
+      attachInstanceState(mockInstance, interceptorIds, incompleteUtilities);
+      
+      const snapshot = mockInstance.createSnapshot();
+      
+      expect(snapshot.stats.queue).toBeNull();
+      expect(snapshot.groups).toEqual([]);
+      expect(snapshot.conditionalInterceptors).toEqual([]);
+    });
+
+    test('should handle missing interceptor manager methods', () => {
+      const incompleteUtilities = {
+        ...utilities,
+        interceptorManager: {
+          // Missing required methods
+        }
+      };
+      
+      attachInstanceState(mockInstance, interceptorIds, incompleteUtilities);
+      
+      const snapshot = mockInstance.createSnapshot();
+      
+      // Should provide defaults when methods are missing
+      expect(snapshot.groups).toEqual([]);
+      expect(snapshot.conditionalInterceptors).toEqual([]);
+    });
+  });
+
+  describe('chaining and return values', () => {
+    test('should support method chaining', () => {
+      attachInstanceState(mockInstance, interceptorIds, utilities);
+      
+      const result = mockInstance.reset().reset(false);
+      expect(result).toBe(mockInstance);
+    });
+
+    test('should return consistent object types', () => {
+      attachInstanceState(mockInstance, interceptorIds, utilities);
+      
+      const config = mockInstance.getConfig();
+      const stats = mockInstance.getStats();
+      const activeInterceptors = mockInstance.getActiveInterceptors();
+      const snapshot = mockInstance.createSnapshot();
+      
+      expect(typeof config).toBe('object');
+      expect(typeof stats).toBe('object');
+      expect(typeof activeInterceptors).toBe('object');
+      expect(typeof snapshot).toBe('object');
+      
+      expect(Array.isArray(activeInterceptors.request)).toBe(true);
+      expect(Array.isArray(activeInterceptors.response)).toBe(true);
+    });
+  });
 });

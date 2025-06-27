@@ -372,4 +372,232 @@ describe("setupMethods", () => {
       });
     });
   });
+  describe('setupAuth - additional cases', () => {
+    test('should handle auth config without refresh', () => {
+      attachSetupMethods(mockInstance);
+
+      const authConfig = {
+        getToken: () => 'test-token'
+        // No refresh configuration
+      };
+
+      mockInstance.setupAuth(authConfig);
+
+      expect(mockInstance.useAuth).toHaveBeenCalledWith(authConfig.getToken);
+      expect(mockInstance.useRefreshToken).not.toHaveBeenCalled();
+    });
+
+    test('should handle auth config with complete refresh setup', () => {
+      attachSetupMethods(mockInstance);
+
+      const authConfig = {
+        getToken: () => 'access-token',
+        refresh: {
+          refreshUrl: '/auth/refresh',
+          getRefreshToken: () => 'refresh-token',
+          setAccessToken: jest.fn(),
+          setRefreshToken: jest.fn(),
+          onRefreshTokenFail: jest.fn()
+        }
+      };
+
+      mockInstance.setupAuth(authConfig);
+
+      expect(mockInstance.useAuth).toHaveBeenCalledWith(authConfig.getToken);
+      expect(mockInstance.useRefreshToken).toHaveBeenCalledWith(authConfig.refresh);
+    });
+
+    test('should return instance for chaining', () => {
+      attachSetupMethods(mockInstance);
+
+      const result = mockInstance.setupAuth({
+        getToken: () => 'token'
+      });
+
+      expect(result).toBe(mockInstance);
+    });
+  });
+
+  describe('setupEnvironmentInterceptors - production environment', () => {
+    let originalEnv;
+
+    beforeEach(() => {
+      originalEnv = process.env.NODE_ENV;
+    });
+
+    afterEach(() => {
+      process.env.NODE_ENV = originalEnv;
+    });
+
+    test('should add production interceptors when NODE_ENV is production', () => {
+      process.env.NODE_ENV = 'production';
+      attachSetupMethods(mockInstance);
+
+      mockInstance.setupEnvironmentInterceptors();
+
+      // Should add production-specific conditional interceptor
+      expect(mockInstance.addConditionalInterceptor).toHaveBeenCalledWith(
+        'response',
+        expect.any(Function),
+        expect.any(Function),
+        expect.any(Function)
+      );
+
+      // Test the production condition function
+      const responseCall = mockInstance.addConditionalInterceptor.mock.calls
+        .find(call => call[0] === 'response');
+      
+      if (responseCall) {
+        const condition = responseCall[1];
+        
+        // Should apply to private/secure routes
+        expect(condition({ url: '/api/users' })).toBe(true);
+        expect(condition({ url: '/api/admin/users' })).toBe(true);
+        
+        // Should not apply to public routes
+        expect(condition({ url: '/api/public/status' })).toBe(false);
+        expect(condition({ url: '/public/health' })).toBe(false);
+        expect(condition({ url: '/health' })).toBe(false);
+      }
+    });
+
+    test('should test production interceptor handler', () => {
+      process.env.NODE_ENV = 'production';
+      attachSetupMethods(mockInstance);
+
+      mockInstance.setupEnvironmentInterceptors();
+
+      const responseCall = mockInstance.addConditionalInterceptor.mock.calls
+        .find(call => call[0] === 'response');
+      
+      if (responseCall) {
+        const responseHandler = responseCall[2];
+        const errorHandler = responseCall[3];
+        
+        // Test response handler
+        const mockResponse = { 
+          data: { result: 'success' },
+          config: { url: '/api/users' }
+        };
+        const result = responseHandler(mockResponse);
+        expect(result).toBe(mockResponse);
+        
+        // Test error handler
+        const mockError = new Error('Production error');
+        mockError.config = { url: '/api/users' };
+        
+        expect(() => errorHandler(mockError)).toThrow('Production error');
+      }
+    });
+
+    test('should handle development environment', () => {
+      process.env.NODE_ENV = 'development';
+      attachSetupMethods(mockInstance);
+
+      mockInstance.setupEnvironmentInterceptors();
+
+      // Should add development-specific conditional interceptor
+      expect(mockInstance.addConditionalInterceptor).toHaveBeenCalledWith(
+        'request',
+        expect.any(Function),
+        expect.any(Function)
+      );
+
+      // Test the development condition function
+      const requestCall = mockInstance.addConditionalInterceptor.mock.calls
+        .find(call => call[0] === 'request');
+      
+      if (requestCall) {
+        const condition = requestCall[1];
+        // Development condition should always return true
+        expect(condition({ url: '/any/path' })).toBe(true);
+        expect(condition({ url: '/api/test' })).toBe(true);
+      }
+    });
+
+    test('should test development interceptor handler', () => {
+      process.env.NODE_ENV = 'development';
+      attachSetupMethods(mockInstance);
+
+      mockInstance.setupEnvironmentInterceptors();
+
+      const requestCall = mockInstance.addConditionalInterceptor.mock.calls
+        .find(call => call[0] === 'request');
+      
+      if (requestCall) {
+        const requestHandler = requestCall[2];
+        
+        const mockConfig = { 
+          method: 'get',
+          url: '/api/test',
+          headers: {}
+        };
+        
+        const result = requestHandler(mockConfig);
+        expect(result).toBe(mockConfig);
+      }
+    });
+
+    test('should handle unknown environment', () => {
+      process.env.NODE_ENV = 'test';
+      attachSetupMethods(mockInstance);
+
+      mockInstance.setupEnvironmentInterceptors();
+
+      // Should still work but not add environment-specific interceptors
+      // The method should complete without error
+      expect(mockInstance.addConditionalInterceptor).toHaveBeenCalled();
+    });
+
+    test('should return instance for chaining', () => {
+      attachSetupMethods(mockInstance);
+
+      const result = mockInstance.setupEnvironmentInterceptors();
+
+      expect(result).toBe(mockInstance);
+    });
+  });
+
+  describe('setupCommonGroups - additional tests', () => {
+    test('should return instance for chaining', () => {
+      attachSetupMethods(mockInstance);
+
+      const result = mockInstance.setupCommonGroups();
+
+      expect(result).toBe(mockInstance);
+    });
+
+    test('should handle group creation errors gracefully', () => {
+      attachSetupMethods(mockInstance);
+
+      // Mock createInterceptorGroup to throw
+      mockInstance.createInterceptorGroup.mockImplementationOnce(() => {
+        throw new Error('Group creation failed');
+      });
+
+      // Should not throw - error should be handled internally
+      expect(() => mockInstance.setupCommonGroups()).not.toThrow();
+    });
+  });
+
+  describe('edge cases and error handling', () => {
+    test('should handle missing auth config gracefully', () => {
+      attachSetupMethods(mockInstance);
+
+      expect(() => mockInstance.setupAuth()).not.toThrow();
+      expect(() => mockInstance.setupAuth({})).not.toThrow();
+      expect(() => mockInstance.setupAuth(null)).not.toThrow();
+    });
+
+    test('should handle environment interceptors when addConditionalInterceptor fails', () => {
+      attachSetupMethods(mockInstance);
+
+      mockInstance.addConditionalInterceptor.mockImplementationOnce(() => {
+        throw new Error('Failed to add interceptor');
+      });
+
+      // Should not throw - error should be handled internally
+      expect(() => mockInstance.setupEnvironmentInterceptors()).not.toThrow();
+    });
+  });
 });
