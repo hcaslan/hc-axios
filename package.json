@@ -26,6 +26,7 @@
 
     "test:core": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/core",
     "test:utils": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/utils",
+    "test:interceptors": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/interceptors",
 
     "build": "npm run validate-imports && npm run build-version",
     "build-version": "node scripts/build.js",
