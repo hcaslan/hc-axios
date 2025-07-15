@@ -18,6 +18,7 @@ A powerful wrapper around Axios that simplifies token management, adds retry log
 - [Migration from Axios](#migration-from-axios)
 - [Browser Support](#browser-support)
 - [Contributing](#contributing)
+- [Roadmap](#roadmap)
 - [Support](#support)
 - [License](#license)
 
@@ -1332,11 +1333,11 @@ npm run build
 
 ## Roadmap
 
-### v0.0.7 (Pre-Release) (ETA: 2025-07-14)
+### v0.0.7 (Pre-Release) (ETA: 2025-07-21)
 - [ ] Enhanced Error Recovery
 - [ ] Improved Test Coverage
 
-### v0.1.0 (Stable Release) (ETA: 2025-08-11)
+### v0.1.0 (Stable Release) (ETA: 2025-08-25)
 - [ ] API stabilization
 - [ ] Comprehensive test coverage
 - [ ] Performance benchmarks
