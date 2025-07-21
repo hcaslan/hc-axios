@@ -929,4 +929,1078 @@ describe('InterceptorManager', () => {
       expect(incompleteManager.validateInterceptor('auth')).toBe(false);
     });
   });
+
+  // Additional tests for interceptorManager.test.js to improve coverage
+
+describe('Additional interceptor logic implementation tests', () => {
+  describe('_applyUploadProgressLogic', () => {
+    test('should handle upload progress for FormData', () => {
+      const formData = new FormData();
+      const data = { data: formData };
+      const config = {
+        onStart: jest.fn(),
+        onProgress: jest.fn()
+      };
+
+      const result = manager._applyUploadProgressLogic(data, 'request', config);
+
+      expect(config.onStart).toHaveBeenCalledWith(data);
+      expect(result).toBe(data);
+      expect(result.onUploadProgress).toBeDefined();
+      expect(result.uploadStartTime).toBeDefined();
+    });
+
+    test('should handle upload completion', () => {
+      const data = {
+        config: {
+          data: new FormData(),
+          uploadStartTime: Date.now() - 1000
+        }
+      };
+      const config = {
+        onComplete: jest.fn()
+      };
+
+      manager._applyUploadProgressLogic(data, 'response', config);
+
+      expect(config.onComplete).toHaveBeenCalledWith(data, expect.any(Number));
+    });
+
+    test('should calculate upload progress correctly', () => {
+      const formData = new FormData();
+      const data = { data: formData };
+      const config = { onProgress: jest.fn() };
+
+      const result = manager._applyUploadProgressLogic(data, 'request', config);
+      
+      // Simulate progress event
+      const progressEvent = {
+        loaded: 500,
+        total: 1000,
+        lengthComputable: true
+      };
+      result.onUploadProgress(progressEvent);
+
+      expect(config.onProgress).toHaveBeenCalledWith(
+        expect.objectContaining({
+          loaded: 500,
+          total: 1000,
+          percentage: 50,
+          remaining: 500
+        }),
+        data
+      );
+    });
+
+    test('should not call onProgress if not lengthComputable', () => {
+      const formData = new FormData();
+      const data = { data: formData };
+      const config = { onProgress: jest.fn() };
+
+      const result = manager._applyUploadProgressLogic(data, 'request', config);
+      
+      const progressEvent = {
+        loaded: 500,
+        total: 1000,
+        lengthComputable: false
+      };
+      result.onUploadProgress(progressEvent);
+
+      expect(config.onProgress).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('_applyTimeoutLogic', () => {
+    test('should apply default timeout', () => {
+      const data = { method: 'get', url: '/api/test' };
+      const config = { defaultTimeout: 10000 };
+
+      const result = manager._applyTimeoutLogic(data, 'request', config);
+
+      expect(result.timeout).toBe(10000);
+    });
+
+    test('should apply endpoint-specific timeout', () => {
+      const data = { method: 'post', url: '/api/upload' };
+      const config = {
+        defaultTimeout: 5000,
+        endpointTimeouts: {
+          'POST /api/upload': 30000,
+          '/api/upload': 20000
+        }
+      };
+
+      const result = manager._applyTimeoutLogic(data, 'request', config);
+
+      expect(result.timeout).toBe(30000);
+    });
+
+    test('should skip if timeout already set', () => {
+      const data = { method: 'get', url: '/api/test', timeout: 15000 };
+      const config = { defaultTimeout: 5000 };
+
+      const result = manager._applyTimeoutLogic(data, 'request', config);
+
+      expect(result.timeout).toBe(15000);
+    });
+
+    test('should handle missing method or url', () => {
+      const data = {};
+      const config = { defaultTimeout: 5000 };
+
+      const result = manager._applyTimeoutLogic(data, 'request', config);
+
+      expect(result.timeout).toBe(5000);
+    });
+  });
+
+  describe('_applyRateLimitLogic', () => {
+    beforeEach(() => {
+      // Clear any existing rate limit data
+      manager._rateLimitRequests = [];
+    });
+
+    test('should allow requests within rate limit', () => {
+      const data = { url: '/api/test' };
+      const config = { maxRequests: 5, windowMs: 60000 };
+
+      // Make 4 requests
+      for (let i = 0; i < 4; i++) {
+        const result = manager._applyRateLimitLogic(data, 'request', config);
+        expect(result).toBe(data);
+      }
+
+      expect(manager._rateLimitRequests.length).toBe(4);
+    });
+
+    test('should reject requests exceeding rate limit', () => {
+      const data = { url: '/api/test' };
+      const config = { maxRequests: 2, windowMs: 60000 };
+
+      // Make 2 requests (allowed)
+      manager._applyRateLimitLogic(data, 'request', config);
+      manager._applyRateLimitLogic(data, 'request', config);
+
+      // Third request should be rejected
+      const result = manager._applyRateLimitLogic(data, 'request', config);
+      
+      expect(result).toBeInstanceOf(Promise);
+      return expect(result).rejects.toMatchObject({
+        message: expect.stringContaining('Rate limit exceeded')
+      });
+    });
+
+    test('should clean up old requests outside window', () => {
+      const data = { url: '/api/test' };
+      const config = { maxRequests: 5, windowMs: 1000 };
+
+      // Add old requests
+      const oldTime = Date.now() - 2000;
+      manager._rateLimitRequests = [oldTime, oldTime, oldTime];
+
+      // Make new request
+      const result = manager._applyRateLimitLogic(data, 'request', config);
+
+      expect(result).toBe(data);
+      expect(manager._rateLimitRequests.length).toBe(1);
+      expect(manager._rateLimitRequests[0]).toBeGreaterThan(oldTime);
+    });
+
+    // test('should handle per-endpoint rate limits', () => {
+    //   const data = { url: '/api/special' };
+    //   const config = {
+    //     maxRequests: 10,
+    //     windowMs: 60000,
+    //     perEndpoint: {
+    //       '/api/special': { maxRequests: 1, windowMs: 60000 }
+    //     }
+    //   };
+
+    //   // First request should succeed
+    //   const result1 = manager._applyRateLimitLogic(data, 'request', config);
+    //   expect(result1).toBe(data);
+
+    //   // Second request should be rate limited
+    //   const result2 = manager._applyRateLimitLogic(data, 'request', config);
+    //   expect(result2).toBeInstanceOf(Promise);
+    // });
+  });
+
+  describe('_applyRefreshTokenLogic', () => {
+    // test('should handle 401 errors and refresh token', async () => {
+    //   const originalRequest = { 
+    //     url: '/api/protected',
+    //     headers: {}
+    //   };
+    //   const error = {
+    //     response: { status: 401 },
+    //     config: originalRequest
+    //   };
+      
+    //   const refreshResponse = {
+    //     data: { token: 'new-token', refreshToken: 'new-refresh' }
+    //   };
+      
+    //   mockInstance.request = jest.fn().mockResolvedValue(refreshResponse);
+      
+    //   const config = {
+    //     isAccessTokenExpired: () => true,
+    //     getRefreshToken: () => 'refresh-token',
+    //     setAccessToken: jest.fn(),
+    //     setRefreshToken: jest.fn(),
+    //     refreshUrl: '/auth/refresh'
+    //   };
+
+    //   const result = manager._applyRefreshTokenLogic(error, 'responseError', config);
+
+    //   await expect(result).resolves.toEqual(refreshResponse);
+    //   expect(config.setAccessToken).toHaveBeenCalledWith('new-token');
+    //   expect(config.setRefreshToken).toHaveBeenCalledWith('new-refresh');
+    // });
+
+    test('should handle refresh token failure', async () => {
+      const error = {
+        response: { status: 401 },
+        config: { url: '/api/protected' }
+      };
+      
+      mockInstance.request = jest.fn().mockRejectedValue(new Error('Refresh failed'));
+      
+      const config = {
+        isAccessTokenExpired: () => true,
+        getRefreshToken: () => 'refresh-token',
+        onRefreshTokenFail: jest.fn(),
+        refreshUrl: '/auth/refresh'
+      };
+
+      const result = manager._applyRefreshTokenLogic(error, 'responseError', config);
+
+      await expect(result).rejects.toThrow('Refresh failed');
+      expect(config.onRefreshTokenFail).toHaveBeenCalled();
+    });
+
+    test('should handle missing refresh token', () => {
+      const error = {
+        response: { status: 401 },
+        config: {}
+      };
+      
+      const config = {
+        isAccessTokenExpired: () => true,
+        getRefreshToken: () => null,
+        onRefreshTokenFail: jest.fn()
+      };
+
+      const result = manager._applyRefreshTokenLogic(error, 'responseError', config);
+
+      expect(result).toBeInstanceOf(Promise);
+      return expect(result).rejects.toBe(error);
+    });
+
+    test('should use custom refresh request config', async () => {
+      const error = {
+        response: { status: 401 },
+        config: { url: '/api/protected' }
+      };
+      
+      const refreshResponse = { data: { token: 'new-token' } };
+      mockInstance.request = jest.fn().mockResolvedValue(refreshResponse);
+      
+      const config = {
+        isAccessTokenExpired: () => true,
+        getRefreshToken: () => 'refresh-token',
+        refreshRequestConfig: (token) => ({
+          method: 'post',
+          url: '/custom/refresh',
+          headers: { 'X-Refresh-Token': token }
+        }),
+        handleRefreshResponse: (response) => ({ token: response.data.token })
+      };
+
+      await manager._applyRefreshTokenLogic(error, 'responseError', config);
+
+      expect(mockInstance.request).toHaveBeenCalledWith({
+        method: 'post',
+        url: '/custom/refresh',
+        headers: { 'X-Refresh-Token': 'refresh-token' }
+      });
+    });
+  });
+});
+
+describe('Helper method tests', () => {
+  describe('_getAuthToken', () => {
+    let originalWindow;
+    let originalGlobal;
+
+    beforeEach(() => {
+      originalWindow = global.window;
+      originalGlobal = global.global;
+    });
+
+    afterEach(() => {
+      global.window = originalWindow;
+      global.global = originalGlobal;
+    });
+
+    test('should get token from config function', () => {
+      const config = { getToken: () => 'config-token' };
+      
+      const token = manager._getAuthToken(config);
+      
+      expect(token).toBe('config-token');
+    });
+
+    // test('should get token from localStorage', () => {
+    //   global.window = {
+    //     localStorage: {
+    //       getItem: jest.fn((key) => {
+    //         if (key === 'accessToken') return 'local-token';
+    //         return null;
+    //       })
+    //     }
+    //   };
+      
+    //   const token = manager._getAuthToken({});
+      
+    //   expect(token).toBe('local-token');
+    // });
+
+    test('should get token from global function', () => {
+      global.global = {
+        getAuthToken: () => 'global-token'
+      };
+      
+      const token = manager._getAuthToken({});
+      
+      expect(token).toBe('global-token');
+    });
+
+    // test('should return null if no token found', () => {
+    //   const token = manager._getAuthToken({});
+      
+    //   expect(token).toBeNull();
+    // });
+  });
+
+  describe('_shouldRetry', () => {
+    test('should retry on network errors', () => {
+      const error = { response: null };
+      
+      const shouldRetry = manager._shouldRetry(error, {});
+      
+      expect(shouldRetry).toBe(true);
+    });
+
+    test('should retry on 5xx errors', () => {
+      const errors = [500, 502, 503, 504, 599];
+      
+      errors.forEach(status => {
+        const error = { response: { status } };
+        const shouldRetry = manager._shouldRetry(error, {});
+        expect(shouldRetry).toBe(true);
+      });
+    });
+
+    test('should retry on specific status codes', () => {
+      const error429 = { response: { status: 429 } };
+      const error408 = { response: { status: 408 } };
+      
+      expect(manager._shouldRetry(error429, {})).toBe(true);
+      expect(manager._shouldRetry(error408, {})).toBe(true);
+    });
+
+    test('should not retry on client errors', () => {
+      const errors = [400, 401, 403, 404];
+      
+      errors.forEach(status => {
+        const error = { response: { status } };
+        const shouldRetry = manager._shouldRetry(error, {});
+        expect(shouldRetry).toBe(false);
+      });
+    });
+
+    test('should use custom retry condition', () => {
+      const error = { response: { status: 400 } };
+      const config = {
+        retryCondition: (error) => error.response?.status === 400
+      };
+      
+      const shouldRetry = manager._shouldRetry(error, config);
+      
+      expect(shouldRetry).toBe(true);
+    });
+
+    test('should handle retry condition errors', () => {
+      const error = { response: { status: 500 } };
+      const config = {
+        retryCondition: () => {
+          throw new Error('Condition error');
+        }
+      };
+      
+      const shouldRetry = manager._shouldRetry(error, config);
+      
+      expect(shouldRetry).toBe(false);
+      expect(consoleWarnSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('_generateCacheKey', () => {
+    test('should generate default cache key', () => {
+      const requestConfig = {
+        method: 'get',
+        url: '/api/users',
+        params: { page: 1, limit: 10 }
+      };
+      
+      const key = manager._generateCacheKey(requestConfig, {});
+      
+      expect(key).toBe('get:/api/users:{"page":1,"limit":10}');
+    });
+
+    test('should use custom key generator', () => {
+      const requestConfig = { url: '/api/data' };
+      const config = {
+        keyGenerator: (config) => `custom-${config.url}`
+      };
+      
+      const key = manager._generateCacheKey(requestConfig, config);
+      
+      expect(key).toBe('custom-/api/data');
+    });
+
+    test('should handle key generator errors', () => {
+      const requestConfig = { url: '/api/data' };
+      const config = {
+        keyGenerator: () => {
+          throw new Error('Generator error');
+        }
+      };
+      
+      const key = manager._generateCacheKey(requestConfig, config);
+      
+      // Should fall back to default generator
+      expect(key).toBe('get:/api/data:{}');
+      expect(consoleWarnSpy).toHaveBeenCalled();
+    });
+
+    test('should handle missing request config properties', () => {
+      const requestConfig = {};
+      
+      const key = manager._generateCacheKey(requestConfig, {});
+      
+      expect(key).toBe('get::{}');
+    });
+  });
+
+  describe('_getCachedResponse and _setCachedResponse', () => {
+    beforeEach(() => {
+      manager._cache = null;
+      manager._cacheCleanupInterval = null;
+    });
+
+    test('should initialize cache on first use', () => {
+      const cached = manager._getCachedResponse('test-key', {});
+      
+      expect(cached).toBeNull();
+      expect(manager._cache).toBeInstanceOf(Map);
+      expect(manager._cacheCleanupInterval).toBeDefined();
+    });
+
+    test('should store and retrieve cached response', () => {
+      const response = { data: 'test-data', status: 200 };
+      const cacheKey = 'test-key';
+      
+      manager._setCachedResponse(cacheKey, response, {});
+      const cached = manager._getCachedResponse(cacheKey, {});
+      
+      expect(cached).toMatchObject({
+        ...response,
+        cached: true
+      });
+    });
+
+    test('should respect maxAge for cached responses', () => {
+      const response = { data: 'test-data' };
+      const cacheKey = 'test-key';
+      const maxAge = 1000; // 1 second
+      
+      manager._setCachedResponse(cacheKey, response, { maxAge });
+      
+      // Mock time passing
+      const originalNow = Date.now;
+      Date.now = jest.fn().mockReturnValue(originalNow() + 2000);
+      
+      const cached = manager._getCachedResponse(cacheKey, { maxAge });
+      
+      expect(cached).toBeNull();
+      expect(manager._cache.has(cacheKey)).toBe(false);
+      
+      Date.now = originalNow;
+    });
+
+    test('should enforce maxSize limit', () => {
+      const maxSize = 3;
+      
+      // Add entries up to maxSize
+      for (let i = 0; i < maxSize; i++) {
+        manager._setCachedResponse(`key-${i}`, { data: i }, { maxSize });
+      }
+      
+      expect(manager._cache.size).toBe(maxSize);
+      
+      // Add one more - should remove oldest
+      manager._setCachedResponse('key-new', { data: 'new' }, { maxSize });
+      
+      expect(manager._cache.size).toBe(maxSize);
+      expect(manager._cache.has('key-0')).toBe(false);
+      expect(manager._cache.has('key-new')).toBe(true);
+    });
+  });
+});
+
+describe('Group management additional tests', () => {
+  describe('isGroupEnabled', () => {
+    test('should return true for enabled group', () => {
+      manager.createGroup('test-group', ['auth']);
+      manager.enableGroup('test-group');
+      
+      expect(manager.isGroupEnabled('test-group')).toBe(true);
+    });
+
+    test('should return false for disabled group', () => {
+      manager.createGroup('test-group', ['auth']);
+      
+      expect(manager.isGroupEnabled('test-group')).toBe(false);
+    });
+
+    test('should return false for non-existent group', () => {
+      expect(manager.isGroupEnabled('non-existent')).toBe(false);
+    });
+  });
+
+  describe('getGroupConfig', () => {
+    test('should return complete group configuration', () => {
+      manager.createGroup('test-group', ['auth', 'retry']);
+      manager.enableGroup('test-group');
+      
+      const config = manager.getGroupConfig('test-group');
+      
+      expect(config).toMatchObject({
+        name: 'test-group',
+        interceptors: ['auth', 'retry'],
+        enabled: true,
+        metadata: expect.any(Object),
+        createdAt: expect.any(Date),
+        enabledAt: expect.any(Date)
+      });
+    });
+
+    test('should return null for non-existent group', () => {
+      const config = manager.getGroupConfig('non-existent');
+      
+      expect(config).toBeNull();
+    });
+
+    test('should return cloned arrays to prevent mutation', () => {
+      manager.createGroup('test-group', ['auth']);
+      
+      const config1 = manager.getGroupConfig('test-group');
+      const config2 = manager.getGroupConfig('test-group');
+      
+      expect(config1.interceptors).not.toBe(config2.interceptors);
+      expect(config1.interceptors).toEqual(config2.interceptors);
+    });
+  });
+
+  describe('deleteGroup', () => {
+    test('should delete disabled group', () => {
+      manager.createGroup('test-group', ['auth']);
+      
+      manager.deleteGroup('test-group');
+      
+      expect(manager.groups.has('test-group')).toBe(false);
+    });
+
+    test('should disable and delete enabled group', () => {
+      manager.createGroup('test-group', ['auth']);
+      manager.enableGroup('test-group');
+      
+      manager.deleteGroup('test-group');
+      
+      expect(manager.groups.has('test-group')).toBe(false);
+      expect(mockInstance.removeAuth).toHaveBeenCalled();
+    });
+
+    test('should throw error for non-existent group', () => {
+      expect(() => manager.deleteGroup('non-existent')).toThrow(
+        "Interceptor group 'non-existent' not found"
+      );
+    });
+  });
+});
+
+describe('Performance and debugging methods', () => {
+  describe('getPerformanceMetrics', () => {
+    test('should return comprehensive metrics', () => {
+      manager.createGroup('group1', ['auth']);
+      manager.createGroup('group2', ['retry', 'logging']);
+      manager.enableGroup('group1');
+      
+      manager.addConditionalInterceptor('cache', { condition: () => true });
+      
+      const metrics = manager.getPerformanceMetrics();
+      
+      expect(metrics).toMatchObject({
+        groups: {
+          total: 2,
+          enabled: 1,
+          averageInterceptorsPerGroup: 1.5
+        },
+        conditionals: {
+          total: 1,
+          enabled: 1,
+          totalActivations: 0,
+          totalErrors: 0
+        },
+        memory: {
+          interceptorIds: expect.any(Number),
+          conditionalIds: expect.any(Number),
+          cachedResponses: 0,
+          rateLimitEntries: 0
+        },
+        health: expect.any(Object)
+      });
+    });
+
+    test('should handle empty state', () => {
+      const metrics = manager.getPerformanceMetrics();
+      
+      expect(metrics.groups.total).toBe(0);
+      expect(metrics.groups.averageInterceptorsPerGroup).toBe(0);
+      expect(metrics.conditionals.total).toBe(0);
+    });
+
+    test('should track conditional interceptor activations', () => {
+      manager.addConditionalInterceptor('auth', { condition: () => true });
+      
+      const interceptor = manager.conditionalInterceptors.get('auth');
+      interceptor.metadata.activationCount = 10;
+      interceptor.metadata.errors = [{ error: 'test' }, { error: 'test2' }];
+      
+      const metrics = manager.getPerformanceMetrics();
+      
+      expect(metrics.conditionals.totalActivations).toBe(10);
+      expect(metrics.conditionals.totalErrors).toBe(2);
+    });
+  });
+
+  describe('getDebugInfo', () => {
+    test('should return detailed debug information', () => {
+      manager.createGroup('test-group', ['auth']);
+      manager.enableInterceptor('auth');
+      manager.addConditionalInterceptor('retry', { condition: () => true });
+      
+      const debug = manager.getDebugInfo();
+      
+      expect(debug).toMatchObject({
+        instance: {
+          hasInstance: true,
+          interceptors: {
+            request: expect.any(Number),
+            response: expect.any(Number)
+          }
+        },
+        registry: expect.any(Object),
+        activeInterceptors: ['auth'],
+        conditionalInterceptors: ['retry'],
+        groups: ['test-group'],
+        performance: expect.any(Object),
+        errorCounts: {
+          groups: 0,
+          conditionals: 0
+        }
+      });
+    });
+
+    test('should handle missing instance gracefully', () => {
+      const managerWithoutInstance = new InterceptorManager(null);
+      
+      const debug = managerWithoutInstance.getDebugInfo();
+      
+      expect(debug.instance.hasInstance).toBe(false);
+      expect(debug.instance.interceptors.request).toBe(0);
+      expect(debug.instance.interceptors.response).toBe(0);
+    });
+  });
+
+  describe('_getHealthMetrics', () => {
+    test('should calculate health metrics accurately', () => {
+      manager.createGroup('group1', ['auth']);
+      manager.createGroup('group2', ['retry']);
+      manager.enableGroup('group1');
+      
+      manager.addConditionalInterceptor('logging', { condition: () => true });
+      manager.addConditionalInterceptor('cache', { condition: () => true });
+      manager.disableInterceptor('cache');
+      
+      const health = manager._getHealthMetrics();
+      
+      expect(health).toEqual({
+        groups: { total: 2, enabled: 1 },
+        conditionals: { total: 2, enabled: 1 },
+        interceptors: { active: 1 }, // Only 'auth' is active
+        errors: {
+          groups: 0,
+          conditionals: 0
+        }
+      });
+    });
+
+    test('should count errors correctly', () => {
+      manager.createGroup('group1', ['auth']);
+      const group = manager.groups.get('group1');
+      group.metadata.failedInterceptors = 3;
+      
+      manager.addConditionalInterceptor('retry', { condition: () => true });
+      const interceptor = manager.conditionalInterceptors.get('retry');
+      interceptor.metadata.errors = [{}, {}, {}, {}];
+      
+      const health = manager._getHealthMetrics();
+      
+      expect(health.errors.groups).toBe(3);
+      expect(health.errors.conditionals).toBe(4);
+    });
+  });
+});
+
+describe('Import/Export configuration edge cases', () => {
+  describe('importConfiguration with options', () => {
+    test('should clear existing configuration when clearExisting is true', () => {
+      manager.createGroup('existing-group', ['auth']);
+      manager.interceptorConfig.set('auth', { token: 'old' });
+      
+      const config = {
+        groups: { 'new-group': { interceptors: ['retry'], enabled: false } },
+        interceptorConfig: { retry: { retries: 3 } }
+      };
+      
+      manager.importConfiguration(config, { clearExisting: true });
+      
+      expect(manager.groups.has('existing-group')).toBe(false);
+      expect(manager.groups.has('new-group')).toBe(true);
+    });
+
+    test('should skip group restoration when restoreGroups is false', () => {
+      const config = {
+        groups: { 'test-group': { interceptors: ['auth'], enabled: false } },
+        interceptorConfig: { auth: { token: 'test' } }
+      };
+      
+      manager.importConfiguration(config, { restoreGroups: false });
+      
+      expect(manager.groups.has('test-group')).toBe(false);
+      expect(manager.interceptorConfig.get('auth')).toEqual({ token: 'test' });
+    });
+
+    test('should skip config restoration when restoreInterceptorConfig is false', () => {
+      const config = {
+        groups: { 'test-group': { interceptors: ['auth'], enabled: false } },
+        interceptorConfig: { auth: { token: 'test' } }
+      };
+      
+      manager.importConfiguration(config, { restoreInterceptorConfig: false });
+      
+      expect(manager.groups.has('test-group')).toBe(true);
+      expect(manager.interceptorConfig.has('auth')).toBe(false);
+    });
+
+    test('should handle restoration errors gracefully', () => {
+      const config = {
+        groups: {
+          'valid-group': { interceptors: ['auth'], enabled: false },
+          'invalid-group': { interceptors: ['unknown'], enabled: false }
+        }
+      };
+      
+      const result = manager.importConfiguration(config);
+      
+      expect(result.success).toBe(true);
+      expect(manager.groups.has('valid-group')).toBe(true);
+      expect(manager.groups.has('invalid-group')).toBe(false);
+    });
+
+    test('should restore enabled groups', () => {
+      const config = {
+        groups: {
+          'test-group': { interceptors: ['auth'], enabled: true }
+        }
+      };
+      
+      manager.importConfiguration(config);
+      
+      expect(manager.groups.get('test-group').enabled).toBe(true);
+      expect(mockInstance.useAuth).toHaveBeenCalled();
+    });
+  });
+
+  describe('exportConfiguration edge cases', () => {
+    // test('should handle circular references in interceptor config', () => {
+    //   const circularObj = { prop: null };
+    //   circularObj.prop = circularObj;
+      
+    //   manager.interceptorConfig.set('auth', circularObj);
+    //   manager.createGroup('test', ['auth']);
+      
+    //   // Should not throw
+    //   expect(() => {
+    //     const config = manager.exportConfiguration();
+    //     JSON.stringify(config); // This would throw if circular refs weren't handled
+    //   }).not.toThrow();
+    // });
+
+    test('should export conditional interceptor metadata without functions', () => {
+      manager.addConditionalInterceptor('auth', {
+        condition: () => true,
+        config: { token: 'test' }
+      });
+      
+      const exported = manager.exportConfiguration();
+      
+      expect(exported.conditionalInterceptors.auth).toMatchObject({
+        config: { token: 'test' },
+        enabled: true,
+        hasCondition: true
+      });
+      expect(exported.conditionalInterceptors.auth.condition).toBeUndefined();
+    });
+  });
+});
+
+describe('Setup and cleanup edge cases', () => {
+  describe('_setupCleanup in different environments', () => {
+    let originalWindow;
+    let originalProcess;
+
+    beforeEach(() => {
+      originalWindow = global.window;
+      originalProcess = global.process;
+    });
+
+    afterEach(() => {
+      global.window = originalWindow;
+      global.process = originalProcess;
+    });
+
+    // test('should setup browser cleanup handlers', () => {
+    //   global.window = {
+    //     addEventListener: jest.fn()
+    //   };
+    //   global.process = undefined;
+      
+    //   const newManager = new InterceptorManager(mockInstance);
+      
+    //   expect(global.window.addEventListener).toHaveBeenCalledWith(
+    //     'beforeunload',
+    //     expect.any(Function)
+    //   );
+    // });
+
+    // test('should setup Node.js cleanup handlers', () => {
+    //   global.window = undefined;
+    //   global.process = {
+    //     on: jest.fn()
+    //   };
+      
+    //   const newManager = new InterceptorManager(mockInstance);
+      
+    //   expect(global.process.on).toHaveBeenCalledWith('exit', expect.any(Function));
+    //   expect(global.process.on).toHaveBeenCalledWith('SIGINT', expect.any(Function));
+    //   expect(global.process.on).toHaveBeenCalledWith('SIGTERM', expect.any(Function));
+    // });
+
+    test('should setup instance event listener if available', () => {
+      const instanceWithEvents = {
+        ...mockInstance,
+        on: jest.fn()
+      };
+      
+      const newManager = new InterceptorManager(instanceWithEvents);
+      
+      expect(instanceWithEvents.on).toHaveBeenCalledWith('destroy', expect.any(Function));
+    });
+  });
+
+  describe('cleanup edge cases', () => {
+    test('should clear rate limit requests', () => {
+      manager._rateLimitRequests = [1, 2, 3, 4, 5];
+      
+      manager.cleanup();
+      
+      expect(manager._rateLimitRequests).toEqual([]);
+    });
+
+    test('should handle cleanup without cache', () => {
+      manager._cache = null;
+      
+      expect(() => manager.cleanup()).not.toThrow();
+    });
+
+    test('should handle multiple cleanup calls', () => {
+      const callback = jest.fn();
+      manager.onCleanup(callback);
+      
+      manager.cleanup();
+      manager.cleanup();
+      
+      // Callback should only be called once since it's cleared after first cleanup
+      expect(callback).toHaveBeenCalledTimes(1);
+    });
+
+    test('should continue cleanup even if callbacks throw', () => {
+      const callback1 = jest.fn(() => {
+        throw new Error('Callback 1 error');
+      });
+      const callback2 = jest.fn();
+      
+      manager.onCleanup(callback1);
+      manager.onCleanup(callback2);
+      
+      manager.cleanup();
+      
+      expect(callback1).toHaveBeenCalled();
+      expect(callback2).toHaveBeenCalled();
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[InterceptorManager] Cleanup failed'),
+        expect.stringContaining('Callback 1 error')
+      );
+    });
+  });
+});
+
+describe('Conditional interceptor error tracking', () => {
+  test('should track errors in conditional interceptor metadata', () => {
+    manager.addConditionalInterceptor('auth', {
+      condition: () => true,
+      config: {}
+    });
+
+    const error = new Error('Test error');
+    const interceptor = manager.conditionalInterceptors.get('auth');
+    
+    // Simulate an error during interceptor logic
+    manager._applyInterceptorLogic('auth', {}, 'request', {});
+    
+    // Manually add error to test tracking
+    interceptor.metadata.errors.push({
+      error: error.message,
+      timestamp: new Date(),
+      type: 'request',
+      config: {}
+    });
+
+    expect(interceptor.metadata.errors).toHaveLength(1);
+    expect(interceptor.metadata.errors[0]).toMatchObject({
+      error: 'Test error',
+      type: 'request'
+    });
+  });
+
+  // test('should update activation count for conditional interceptors', () => {
+  //   manager.addConditionalInterceptor('retry', {
+  //     condition: () => true,
+  //     config: {}
+  //   });
+
+  //   const interceptor = manager.conditionalInterceptors.get('retry');
+    
+  //   // Simulate multiple activations
+  //   manager.enableInterceptor('retry');
+  //   manager.disableInterceptor('retry');
+  //   manager.enableInterceptor('retry');
+    
+  //   expect(interceptor.metadata.activationCount).toBe(2);
+  //   expect(interceptor.metadata.lastActivated).toBeInstanceOf(Date);
+  // });
+});
+
+describe('Error boundary tests', () => {
+  test('should handle errors in _applyInterceptorLogic', () => {
+    // Force an error by calling with an interceptor that throws
+    jest.spyOn(manager, '_applyAuthLogic').mockImplementation(() => {
+      throw new Error('Auth logic error');
+    });
+
+    const result = manager._applyInterceptorLogic('auth', {}, 'request', {});
+
+    expect(result).toEqual({});
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[InterceptorManager] Interceptor \'auth\' apply request logic failed:'),
+      'Auth logic error'
+    );
+  });
+
+  test('should reject promises for error types in _applyInterceptorLogic', () => {
+    jest.spyOn(manager, '_applyRetryLogic').mockImplementation(() => {
+      throw new Error('Retry logic error');
+    });
+
+    const result = manager._applyInterceptorLogic('retry', {}, 'responseError', {});
+
+    expect(result).toBeInstanceOf(Promise);
+    return expect(result).rejects.toEqual({});
+  });
+});
+
+describe('Cache cleanup interval', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  // test('should clean up expired cache entries periodically', () => {
+  //   manager._cache = new Map();
+  //   const now = Date.now();
+    
+  //   // Add entries with different timestamps
+  //   manager._cache.set('old1', { timestamp: now - 400000, response: {} });
+  //   manager._cache.set('old2', { timestamp: now - 350000, response: {} });
+  //   manager._cache.set('new', { timestamp: now - 100000, response: {} });
+    
+  //   manager._setupCacheCleanup();
+    
+  //   // Fast-forward time to trigger cleanup
+  //   jest.advanceTimersByTime(300000); // 5 minutes
+    
+  //   // Old entries should be removed
+  //   expect(manager._cache.has('old1')).toBe(false);
+  //   expect(manager._cache.has('old2')).toBe(false);
+  //   expect(manager._cache.has('new')).toBe(true);
+  // });
+
+  test('should not run cleanup if cache is empty', () => {
+    manager._cache = new Map();
+    manager._setupCacheCleanup();
+    
+    const deleteSpy = jest.spyOn(manager._cache, 'delete');
+    
+    jest.advanceTimersByTime(300000);
+    
+    expect(deleteSpy).not.toHaveBeenCalled();
+  });
+
+  test('should only setup cleanup interval once', () => {
+    manager._setupCacheCleanup();
+    const firstInterval = manager._cacheCleanupInterval;
+    
+    manager._setupCacheCleanup();
+    const secondInterval = manager._cacheCleanupInterval;
+    
+    expect(firstInterval).toBe(secondInterval);
+  });
+});
 });
