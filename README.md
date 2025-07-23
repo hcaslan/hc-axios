@@ -1333,11 +1333,7 @@ npm run build
 
 ## Roadmap
 
-### v0.0.7 (Pre-Release) (ETA: 2025-07-21)
-- [ ] Enhanced Error Recovery
-- [ ] Improved Test Coverage
-
-### v0.1.0 (Stable Release) (ETA: 2025-08-25)
+### v0.1.0 (Stable Release) (ETA: 2025-09-29)
 - [ ] API stabilization
 - [ ] Comprehensive test coverage
 - [ ] Performance benchmarks

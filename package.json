@@ -1,6 +1,6 @@
 {
   "name": "hc-axios",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "A powerful wrapper around Axios that simplifies token management, adds retry logic, provides useful debugging features, and eliminates common boilerplate patterns with advanced utilities.",
   "type": "module",
   "main": "index.js",
@@ -35,8 +35,7 @@
     "validate-imports:report": "node scripts/validate-imports.js --report-only",
     "lint": "npm run validate-imports",
     "prebuild": "npm run validate-imports",
-    "prepublishOnly": "npm run build",
-    "postinstall": "npm run validate-imports:report || true"
+    "prepublishOnly": "npm run build"
   },
   "repository": {
     "type": "git",
