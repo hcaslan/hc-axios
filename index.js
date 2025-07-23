@@ -43,3 +43,36 @@ export {
 
 // Version
 export { version } from './utils/version.js';
+
+// Import what we need for the main export
+import { createExtendedInstance } from './core/createExtendedInstance.js';
+import { version } from './utils/version.js';
+
+// Main hcAxios static object - this was missing!
+const hcAxios = {
+  /**
+   * Create a new hcAxios instance
+   * @param {string | import('axios').AxiosRequestConfig} [config] - Base URL string or axios config object
+   * @returns {import('./index').HCAxiosInstance}
+   */
+  create(config) {
+    // Handle string config (base URL)
+    if (typeof config === 'string') {
+      return createExtendedInstance({ baseURL: config });
+    }
+    // Handle object config or undefined
+    return createExtendedInstance(config);
+  },
+  
+  // Version from package.json
+  VERSION: version,
+  
+  // Identifier
+  isHCAxios: true
+};
+
+// Export the main hcAxios object as default
+export default hcAxios;
+
+// Also export as named export for compatibility
+export { hcAxios };
