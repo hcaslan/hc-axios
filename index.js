@@ -4,28 +4,28 @@
  */
 
 // Core functionality
-export { createExtendedInstance } from './core/createExtendedInstance.js';
+export { createExtendedInstance } from './lib/core/createExtendedInstance.js';
 
 // Interceptors
-export { attachAuthInterceptor } from './interceptors/auth.js';
-export { attachRefreshInterceptor } from './interceptors/refresh.js';
-export { attachRetryInterceptor } from './interceptors/retry.js';
-export { attachLoggingInterceptor } from './interceptors/logging.js';
-export { attachUploadInterceptor } from './interceptors/upload.js';
-export { attachCacheInterceptor } from './interceptors/cache.js';
-export { attachTimeoutInterceptor } from './interceptors/timeout.js';
-export { attachRateLimitInterceptor } from './interceptors/rateLimit.js';
+export { attachAuthInterceptor } from './lib/interceptors/auth.js';
+export { attachRefreshInterceptor } from './lib/interceptors/refresh.js';
+export { attachRetryInterceptor } from './lib/interceptors/retry.js';
+export { attachLoggingInterceptor } from './lib/interceptors/logging.js';
+export { attachUploadInterceptor } from './lib/interceptors/upload.js';
+export { attachCacheInterceptor } from './lib/interceptors/cache.js';
+export { attachTimeoutInterceptor } from './lib/interceptors/timeout.js';
+export { attachRateLimitInterceptor } from './lib/interceptors/rateLimit.js';
 
 // Utilities - Export classes and functions separately to avoid circular deps
-export { RequestQueue } from './utils/requestQueue.js';
-export { PaginationHelper } from './utils/pagination.js';
-export { CancellationManager } from './utils/cancellation.js';
-export { BatchRequestManager } from './utils/batchRequests.js';
-export { ErrorHandler } from './utils/errorHandler.js';
-export { InterceptorManager } from './utils/interceptorManager.js';
+export { RequestQueue } from './lib/utils/requestQueue.js';
+export { PaginationHelper } from './lib/utils/pagination.js';
+export { CancellationManager } from './lib/utils/cancellation.js';
+export { BatchRequestManager } from './lib/utils/batchRequests.js';
+export { ErrorHandler } from './lib/utils/errorHandler.js';
+export { InterceptorManager } from './lib/utils/interceptorManager.js';
 
 // Response transformation
-export { responseTransformers } from './utils/responseTransform.js';
+export { responseTransformers } from './lib/utils/responseTransform.js';
 
 // Common patterns
 export { 
@@ -33,20 +33,20 @@ export {
   createResource, 
   uploadFile, 
   createHealthCheck 
-} from './utils/commonPatterns.js';
+} from './lib/utils/commonPatterns.js';
 
 // Interceptor conditions
 export { 
   InterceptorConditions, 
   CommonConditions 
-} from './utils/interceptorConditions.js';
+} from './lib/utils/interceptorConditions.js';
 
 // Version
-export { version } from './utils/version.js';
+export { version } from './lib/utils/version.js';
 
 // Import what we need for the main export
-import { createExtendedInstance } from './core/createExtendedInstance.js';
-import { version } from './utils/version.js';
+import { createExtendedInstance } from './lib/core/createExtendedInstance.js';
+import { version } from './lib/utils/version.js';
 
 // Main hcAxios static object - this was missing!
 const hcAxios = {
