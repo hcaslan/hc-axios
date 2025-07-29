@@ -28,6 +28,28 @@
     "test:utils": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/utils",
     "test:interceptors": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/interceptors",
 
+    "test:setupMethods": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/core/setupMethods.test.js",
+    "test:interceptorMethods": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/core/interceptorMethods.test.js",
+    "test:advancedFeatures": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/core/advancedFeatures.test.js",
+    "test:createExtendedInstance": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/core/createExtendedInstance.test.js",
+    "test:instanceState": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/core/instanceState.test.js",
+    "test:utilityMethods": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/core/utilityMethods.test.js",
+
+    "test:commonPatterns": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/utils/commonPatterns.test.js",
+    "test:responseTransform": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/utils/responseTransform.test.js",
+    "test:errorHandler": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/utils/errorHandler.test.js",
+    "test:interceptorManager": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/utils/interceptorManager.test.js",
+    "test:interceptorConditions": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/utils/interceptorConditions.test.js",
+    "test:pagination": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/utils/pagination.test.js",
+
+    "test:logging": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/interceptors/logging.test.js",
+    "test:auth": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/interceptors/auth.test.js",
+    "test:refresh": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/interceptors/refresh.test.js",
+    "test:rateLimit": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/interceptors/rateLimit.test.js",
+    "test:upload": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/interceptors/upload.test.js",
+    "test:timeout": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/interceptors/timeout.test.js",
+    "test:retry": "cross-env NODE_OPTIONS='--experimental-vm-modules' jest tests/unit/interceptors/retry.test.js",
+
     "build": "npm run validate-imports && npm run build-version",
     "build-version": "node scripts/build.js",
     "validate-imports": "node scripts/validate-imports.js",
